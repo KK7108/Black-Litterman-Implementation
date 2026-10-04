@@ -1,3 +1,5 @@
+import sys
+from pathlib import Path
 import pandas as pd
 import numpy as np
 from sklearn.linear_model import ElasticNet
@@ -6,9 +8,12 @@ from scipy.optimize import minimize
 import warnings
 warnings.filterwarnings('ignore') # Suppress minor math warnings during the loop
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from config import DATA_DIR, PERFORMANCE_DIR
+
 print("Loading daily prices from Phase 1...")
 # Read the CSV and tell Pandas the first column is a Date
-prices = pd.read_csv("stitched_prices.csv", index_col=0, parse_dates=True)
+prices = pd.read_csv(DATA_DIR / "stitched_prices.csv", index_col=0, parse_dates=True)
 
 print("Calculating daily volatility...")
 # calculate volatility before converting to monthly data to capture the daily swings
@@ -250,8 +255,8 @@ print("\n--- PHASE 5 COMPLETE ---")
 
 # --- SAVE PREDICTIONS ---
 df_all_preds = pd.concat(all_predictions)
-df_all_preds.to_csv("ml_predictions.csv", index=False)
-print("Machine learning predictions saved to ml_predictions.csv")
+df_all_preds.to_csv(PERFORMANCE_DIR / "ml_predictions.csv", index=False)
+print(f"Machine learning predictions saved to {PERFORMANCE_DIR / 'ml_predictions.csv'}")
 
 
 #PHASE 6: PERFORMANCE METRICS 
@@ -332,8 +337,8 @@ plt.xlabel('Date')
 plt.legend()
 plt.grid(True, linestyle='--', alpha=0.6)
 plt.tight_layout()
-plt.savefig('chart_cumulative_performance.png', dpi=300)
-print("Saved chart_cumulative_performance.png")
+plt.savefig(PERFORMANCE_DIR / 'chart_cumulative_performance.png', dpi=300)
+print(f"Saved {PERFORMANCE_DIR / 'chart_cumulative_performance.png'}")
 # plt.show()
 
 # 2. Monthly Excess Return Chart - Highlighting when the model beat the market 
@@ -349,8 +354,8 @@ plt.ylabel('Excess Monthly Return (%)')
 plt.xlabel('Date')
 plt.grid(True, linestyle='--', alpha=0.3)
 plt.tight_layout()
-plt.savefig('chart_monthly_alpha.png', dpi=300)
-print("Saved chart_monthly_alpha.png")
+plt.savefig(PERFORMANCE_DIR / 'chart_monthly_alpha.png', dpi=300)
+print(f"Saved {PERFORMANCE_DIR / 'chart_monthly_alpha.png'}")
 # plt.show()
 
 # 3. Stacked Bar Chart of Asset Allocation Composition
@@ -362,6 +367,6 @@ plt.ylabel('Allocation Weight (%)')
 plt.xlabel('Year')
 plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left')
 plt.tight_layout()
-plt.savefig('chart_asset_allocation.png', dpi=300)
-print("Saved chart_asset_allocation.png")
+plt.savefig(PERFORMANCE_DIR / 'chart_asset_allocation.png', dpi=300)
+print(f"Saved {PERFORMANCE_DIR / 'chart_asset_allocation.png'}")
 # plt.show()

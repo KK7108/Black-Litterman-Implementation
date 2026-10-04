@@ -1,9 +1,14 @@
 import os
+import sys
+from pathlib import Path
 import pandas as pd
 import numpy as np
 import yfinance as yf
 from scipy.optimize import minimize
 from numpy.linalg import inv
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from config import DATA_DIR, PORTFOLIO_DIR
 
 excel_filename = "BL AA project mischa data 18 May 2026 VALUES.xlsx"
 
@@ -19,13 +24,9 @@ if os.path.exists(excel_filename):
     # LOAD AND CLEAN INDIVIDUAL SHEETS
     for sheet_name in target_sheets:
         sheet_data = pd.read_excel(excel_file, sheet_name=sheet_name)
-        # the day comes first (DD/MM/YYYY)
         sheet_data['Date'] = pd.to_datetime(sheet_data['Date'], dayfirst=True)
-        # make the date the row labels
         sheet_data.set_index('Date', inplace=True)
-        # Grab the first column of data 
         asset_prices = sheet_data.iloc[:, [0]]
-        # Rename that column to just the sheet name ('SPY' instead of 'SPY US Equity')
         asset_prices.columns = [sheet_name]
         all_assets.append(asset_prices)
 
@@ -33,7 +34,6 @@ if os.path.exists(excel_filename):
     prices = pd.concat(all_assets, axis=1)
 
     # ALIGN DATES, dropping IBIT and XGLU
-    # Keep only data from Jan 2024 onward to match the Bitcoin ETF
     if 'IBIT' in prices.columns:
         prices = prices.drop(columns=['IBIT'])
     if 'XGLU' in prices.columns:
@@ -49,14 +49,14 @@ if os.path.exists(excel_filename):
     cov_matrix = returns.cov()
 
     # Save the outputs
-    prices.to_csv("stitched_prices.csv")
-    cov_matrix.to_csv("covariance_matrix.csv")
+    prices.to_csv(DATA_DIR / "stitched_prices.csv")
+    cov_matrix.to_csv(DATA_DIR / "covariance_matrix.csv")
 
     print("Data stitched successfully! Covariance matrix generated.")
-elif os.path.exists("stitched_prices.csv") and os.path.exists("covariance_matrix.csv"):
+elif (DATA_DIR / "stitched_prices.csv").exists() and (DATA_DIR / "covariance_matrix.csv").exists():
     print("Raw Excel file not found, loading pre-calculated stitched_prices.csv and covariance_matrix.csv...")
-    prices = pd.read_csv("stitched_prices.csv", index_col=0, parse_dates=True)
-    cov_matrix = pd.read_csv("covariance_matrix.csv", index_col=0)
+    prices = pd.read_csv(DATA_DIR / "stitched_prices.csv", index_col=0, parse_dates=True)
+    cov_matrix = pd.read_csv(DATA_DIR / "covariance_matrix.csv", index_col=0)
     print("Pre-calculated data loaded successfully!")
 else:
     raise FileNotFoundError("Neither the raw Excel file nor stitched_prices.csv / covariance_matrix.csv were found.")
@@ -65,7 +65,7 @@ else:
 
 
 print("Loading Covariance Matrix from Phase 1...")
-cov_matrix = pd.read_csv("covariance_matrix.csv", index_col=0)
+cov_matrix = pd.read_csv(DATA_DIR / "covariance_matrix.csv", index_col=0)
 
 # LIVE MARKET WEIGHTS
 tickers = [
@@ -120,7 +120,7 @@ implied_returns = risk_aversion * cov_matrix.dot(market_weights)
 # Annualize them for 252 trading days
 annual_implied_returns = implied_returns * 252
 
-annual_implied_returns.to_csv("implied_equilibrium_returns.csv")
+annual_implied_returns.to_csv(PORTFOLIO_DIR / "implied_equilibrium_returns.csv")
 
 print("\n--- PHASE 2 COMPLETE ---")
 print("Here are the Market's Live Expected Annual Returns:")

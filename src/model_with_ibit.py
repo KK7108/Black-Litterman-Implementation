@@ -5,26 +5,31 @@ Uses the post-Jan 2024 common trading history and live market capitalizations.
 """
 
 import os
+import sys
+from pathlib import Path
 import pandas as pd
 import numpy as np
 import yfinance as yf
 from scipy.optimize import minimize
 from numpy.linalg import inv
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from config import DATA_DIR
+
 print("=" * 60)
 print("BLACK-LITTERMAN MODEL (13 ASSETS INCLUDING IBIT)")
 print("=" * 60)
 
 # 1. LOAD DATA
-cov_file = "covariance_matrix_post_2024_all13.csv"
-prices_file = "stitched_prices_post_2024_all13.csv"
+cov_file = DATA_DIR / "covariance_matrix_post_2024_all13.csv"
+prices_file = DATA_DIR / "stitched_prices_post_2024_all13.csv"
 
-if not os.path.exists(cov_file) or not os.path.exists(prices_file):
+if not cov_file.exists() or not prices_file.exists():
     print("Pre-calculated post-2024 data missing. Running fetch_prices.py first...")
     import fetch_prices
     fetch_prices.fetch_and_update()
 
-print(f"\nLoading 13-asset covariance matrix from {cov_file}...")
+print(f"\nLoading 13-asset covariance matrix from {cov_file.name}...")
 cov_matrix = pd.read_csv(cov_file, index_col=0)
 assets = list(cov_matrix.index)
 print(f"Assets ({len(assets)}):", assets)

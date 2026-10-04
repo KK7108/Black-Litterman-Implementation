@@ -5,21 +5,27 @@ Operational Portfolio Manager:
 - Takes your total portfolio capital (or existing holdings)
 - Fetches live closing prices
 - Generates an actionable Trade Execution Blotter with exact shares to BUY/SELL
+- Saves order blotter to outputs/portfolio/trade_orders.csv
 """
 
-import os
+import sys
+from pathlib import Path
 import pandas as pd
 import numpy as np
 import yfinance as yf
 from scipy.optimize import minimize
 from numpy.linalg import inv
 
+# Ensure src/ is on Python path
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from config import DATA_DIR, PORTFOLIO_DIR
+
 def generate_target_weights(risk_aversion=2.5, max_weight=0.35):
     """
     Runs the 13-Asset Black-Litterman model to produce optimal target weights.
     """
-    cov_file = "covariance_matrix_post_2024_all13.csv"
-    if not os.path.exists(cov_file):
+    cov_file = DATA_DIR / "covariance_matrix_post_2024_all13.csv"
+    if not cov_file.exists():
         import fetch_prices
         fetch_prices.fetch_and_update()
         
@@ -44,10 +50,6 @@ def generate_target_weights(risk_aversion=2.5, max_weight=0.35):
     Pi = risk_aversion * annual_cov.dot(w_mkt)
     
     # 3. Macro & Quantitative Views
-    # View 1: SPY beats IEV by 2.0% (Confidence: 60%)
-    # View 2: GLD absolute return 5.5% (Confidence: 75%)
-    # View 3: HYG beats SHY by 1.5% (Confidence: 50%)
-    # View 4: IBIT expected return 15.0% (Confidence: 50%)
     P = np.zeros((4, len(assets)))
     P[0, assets.index('SPY')] = 1.0; P[0, assets.index('IEV')] = -1.0
     P[1, assets.index('GLD')] = 1.0
@@ -138,14 +140,12 @@ def create_trade_blotter(portfolio_capital=100_000, current_holdings=None, min_t
         'Trade Val ($)': trade_values.abs().round(2)
     })
     
-    # Filter only actionable trades
-    actionable = blotter[blotter['Trade (Shares)'] != 0].copy()
-    
     print("\nTARGET ASSET ALLOCATION & ORDERS:")
     print(blotter[['Price ($)', 'Target %', 'Current Shares', 'Target Shares', 'Trade Action', 'Trade (Shares)', 'Trade Val ($)']].to_string())
     
-    blotter.to_csv("trade_orders.csv")
-    print(f"\n -> Full order blotter saved to trade_orders.csv")
+    out_file = PORTFOLIO_DIR / "trade_orders.csv"
+    blotter.to_csv(out_file)
+    print(f"\n -> Full order blotter saved to {out_file.relative_to(PORTFOLIO_DIR.parent.parent)}")
     
     total_buy = blotter[blotter['Trade Action'] == 'BUY']['Trade Val ($)'].sum()
     total_sell = blotter[blotter['Trade Action'] == 'SELL']['Trade Val ($)'].sum()
@@ -159,5 +159,4 @@ def create_trade_blotter(portfolio_capital=100_000, current_holdings=None, min_t
     return blotter
 
 if __name__ == "__main__":
-    # Example: Running for a $100,000 portfolio
     create_trade_blotter(portfolio_capital=100_000)

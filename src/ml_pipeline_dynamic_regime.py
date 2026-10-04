@@ -1,26 +1,24 @@
-"""
-ml_pipeline_dynamic_regime.py
-Two-Regime Dynamic Expanding Backtest (Method B):
-- Regime 1 (2015 - Jan 2024): 12 Core Assets (Equities, Bonds, Commodities, Real Estate)
-- Regime 2 (Feb 2024 - Present): 13 Assets (Dynamically introduces IBIT upon inception)
-"""
-
 import warnings
 warnings.filterwarnings('ignore')
 
+import sys
+from pathlib import Path
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 from sklearn.linear_model import ElasticNet
 from scipy.optimize import minimize
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from config import DATA_DIR, PERFORMANCE_DIR
+
 print("=" * 65)
 print("TWO-REGIME DYNAMIC EXPANDING BACKTEST (METHOD B: INCLUDING IBIT)")
 print("=" * 65)
 
 # 1. LOAD PRICING DATA
-prices_file = "stitched_prices_with_ibit.csv"
-print(f"\n[1/5] Loading historical prices with IBIT from {prices_file}...")
+prices_file = DATA_DIR / "stitched_prices_with_ibit.csv"
+print(f"\n[1/5] Loading historical prices with IBIT from {prices_file.name}...")
 prices = pd.read_csv(prices_file, index_col=0, parse_dates=True)
 
 daily_returns = prices.pct_change()
@@ -185,8 +183,8 @@ print(" -> Expanding loop complete!")
 
 # 4. SAVE PREDICTIONS & COMPUTE METRICS
 df_all_preds = pd.concat(all_predictions)
-df_all_preds.to_csv("ml_predictions_two_regime.csv", index=False)
-print(" -> Saved ml_predictions_two_regime.csv")
+df_all_preds.to_csv(PERFORMANCE_DIR / "ml_predictions_two_regime.csv", index=False)
+print(" -> Saved outputs/performance/ml_predictions_two_regime.csv")
 
 df_perf = pd.concat(all_portfolio_weights)
 df_perf['ML_Cont'] = df_perf['Optimal_Weight'] * df_perf['Actual_Return']
@@ -243,8 +241,8 @@ plt.xlabel('Date')
 plt.legend(loc='upper left')
 plt.grid(True, linestyle='--', alpha=0.5)
 plt.tight_layout()
-plt.savefig('chart_two_regime_performance.png', dpi=300)
-print(" -> Saved chart_two_regime_performance.png")
+plt.savefig(PERFORMANCE_DIR / 'chart_two_regime_performance.png', dpi=300)
+print(" -> Saved outputs/performance/chart_two_regime_performance.png")
 
 # Chart 2: Monthly Active Alpha
 monthly_perf['Excess'] = monthly_perf['ML_Cont'] - monthly_perf['EQ_Cont']
@@ -259,8 +257,8 @@ plt.xlabel('Date')
 plt.legend()
 plt.grid(True, linestyle='--', alpha=0.3)
 plt.tight_layout()
-plt.savefig('chart_two_regime_alpha.png', dpi=300)
-print(" -> Saved chart_two_regime_alpha.png")
+plt.savefig(PERFORMANCE_DIR / 'chart_two_regime_alpha.png', dpi=300)
+print(" -> Saved outputs/performance/chart_two_regime_alpha.png")
 
 # Chart 3: Dynamic Asset Allocation Stacked Bar Chart
 yearly_weights = df_perf.groupby([df_perf['Date'].dt.year, 'Ticker'])['Optimal_Weight'].mean().unstack().fillna(0)
@@ -270,8 +268,8 @@ plt.ylabel('Allocation Weight')
 plt.xlabel('Year')
 plt.legend(bbox_to_anchor=(1.02, 1), loc='upper left')
 plt.tight_layout()
-plt.savefig('chart_two_regime_asset_allocation.png', dpi=300)
-print(" -> Saved chart_two_regime_asset_allocation.png")
+plt.savefig(PERFORMANCE_DIR / 'chart_two_regime_asset_allocation.png', dpi=300)
+print(" -> Saved outputs/performance/chart_two_regime_asset_allocation.png")
 
 print("\n" + "=" * 65)
 print("TWO-REGIME BACKTEST COMPLETED SUCCESSFULLY!")
