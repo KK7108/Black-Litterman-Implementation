@@ -1,63 +1,65 @@
+import os
 import pandas as pd
 import numpy as np
 import yfinance as yf
 from scipy.optimize import minimize
 from numpy.linalg import inv
 
+excel_filename = "BL AA project mischa data 18 May 2026 VALUES.xlsx"
 
+if os.path.exists(excel_filename):
+    print("Reading the Excel file structure...")
+    excel_file = pd.ExcelFile(excel_filename)
 
-print("Reading the Excel file structure...")
-excel_file = pd.ExcelFile("BL AA project mischa data 18 May 2026 VALUES.xlsx")
+    # Skip first tab ('Main')
+    target_sheets = excel_file.sheet_names[1:]
 
-# Skip first tab ('Main')
-target_sheets = excel_file.sheet_names[1:]
+    all_assets = []
 
-all_assets = []
+    # LOAD AND CLEAN INDIVIDUAL SHEETS
+    for sheet_name in target_sheets:
+        sheet_data = pd.read_excel(excel_file, sheet_name=sheet_name)
+        # the day comes first (DD/MM/YYYY)
+        sheet_data['Date'] = pd.to_datetime(sheet_data['Date'], dayfirst=True)
+        # make the date the row labels
+        sheet_data.set_index('Date', inplace=True)
+        # Grab the first column of data 
+        asset_prices = sheet_data.iloc[:, [0]]
+        # Rename that column to just the sheet name ('SPY' instead of 'SPY US Equity')
+        asset_prices.columns = [sheet_name]
+        all_assets.append(asset_prices)
 
-# LOAD AND CLEAN INDIVIDUAL SHEETS
-for sheet_name in target_sheets:
-    
-    sheet_data = pd.read_excel(excel_file, sheet_name=sheet_name)
-    # the day comes first (DD/MM/YYYY)
-    sheet_data['Date'] = pd.to_datetime(sheet_data['Date'], dayfirst=True)
-    
-    # make the date the row labels
-    sheet_data.set_index('Date', inplace=True)
-    
-    # Grab the first column of data 
-    asset_prices = sheet_data.iloc[:, [0]]
-    
-    # Rename that column to just the sheet name ('SPY' instead of 'SPY US Equity')
-    asset_prices.columns = [sheet_name]
-    
-    all_assets.append(asset_prices)
+    # STITCH THEM TOGETHER
+    prices = pd.concat(all_assets, axis=1)
 
-# STITCH THEM TOGETHER
-prices = pd.concat(all_assets, axis=1)
+    # ALIGN DATES, dropping IBIT and XGLU
+    # Keep only data from Jan 2024 onward to match the Bitcoin ETF
+    if 'IBIT' in prices.columns:
+        prices = prices.drop(columns=['IBIT'])
+    if 'XGLU' in prices.columns:
+        prices = prices.drop(columns=['XGLU'])
 
-# ALIGN DATES, dropping IBIT and XGLU
-# Keep only data from Jan 2024 onward to match the Bitcoin ETF
-if 'IBIT' in prices.columns:
-    prices = prices.drop(columns=['IBIT'])
-if 'XGLU' in prices.columns:
-    prices = prices.drop(columns=['XGLU'])
+    # Drop rows with missing data
+    prices = prices.dropna()
 
+    # CALCULATE RETURNS & COVARIANCE
+    returns = np.log(prices / prices.shift(1))
+    returns = returns.dropna()
 
+    cov_matrix = returns.cov()
 
-# Drop rows with missing data
-prices = prices.dropna()
+    # Save the outputs
+    prices.to_csv("stitched_prices.csv")
+    cov_matrix.to_csv("covariance_matrix.csv")
 
-# CALCULATE RETURNS & COVARIANCE
-returns = np.log(prices / prices.shift(1))
-returns = returns.dropna()
-
-cov_matrix = returns.cov()
-
-# Save the outputs
-prices.to_csv("stitched_prices.csv")
-cov_matrix.to_csv("covariance_matrix.csv")
-
-print("Data stitched successfully! Covariance matrix generated.")
+    print("Data stitched successfully! Covariance matrix generated.")
+elif os.path.exists("stitched_prices.csv") and os.path.exists("covariance_matrix.csv"):
+    print("Raw Excel file not found, loading pre-calculated stitched_prices.csv and covariance_matrix.csv...")
+    prices = pd.read_csv("stitched_prices.csv", index_col=0, parse_dates=True)
+    cov_matrix = pd.read_csv("covariance_matrix.csv", index_col=0)
+    print("Pre-calculated data loaded successfully!")
+else:
+    raise FileNotFoundError("Neither the raw Excel file nor stitched_prices.csv / covariance_matrix.csv were found.")
 
 # PHASE 2
 
